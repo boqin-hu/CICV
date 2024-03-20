@@ -1,0 +1,8 @@
+prefix=/home/cicv/Message/devel
+
+Name: navi_msgs
+Description: Description of navi_msgs
+Version: 0.0.0
+Cflags: -I/home/cicv/Message/devel/include
+Libs: -L${prefix}/lib 
+Requires: message_runtime

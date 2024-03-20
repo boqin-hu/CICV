@@ -1,0 +1,31 @@
+(cl:defpackage navi_msgs-msg
+  (:use )
+  (:export
+   "<NAVPARAS>"
+   "NAVPARAS"
+   "<NAVPOSE>"
+   "NAVPOSE"
+   "<NAVIHMI>"
+   "NAVIHMI"
+   "<NAVITASK>"
+   "NAVITASK"
+   "<NAVITASKSTATUS>"
+   "NAVITASKSTATUS"
+   "<POINT2D>"
+   "POINT2D"
+   "<STATIONPOINT>"
+   "STATIONPOINT"
+   "<SYSINFO>"
+   "SYSINFO"
+   "<TIMESTAMP>"
+   "TIMESTAMP"
+   "<VEHHEADER>"
+   "VEHHEADER"
+   "<VEHPOSITION>"
+   "VEHPOSITION"
+   "<VEHSTATUS>"
+   "VEHSTATUS"
+   "<WIFIINFO>"
+   "WIFIINFO"
+  ))
+

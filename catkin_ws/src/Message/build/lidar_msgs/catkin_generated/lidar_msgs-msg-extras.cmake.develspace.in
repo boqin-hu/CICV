@@ -1,0 +1,2 @@
+set(lidar_msgs_MESSAGE_FILES "/home/cicv/Message/src/lidar_msgs/msg/Centroids.msg;/home/cicv/Message/src/lidar_msgs/msg/CloudCluster.msg;/home/cicv/Message/src/lidar_msgs/msg/CloudClusterArray.msg;/home/cicv/Message/src/lidar_msgs/msg/DetectedObject.msg;/home/cicv/Message/src/lidar_msgs/msg/DetectedObjectArray.msg;/home/cicv/Message/src/lidar_msgs/msg/ObjFusion.msg")
+set(lidar_msgs_SERVICE_FILES "")
