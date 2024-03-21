@@ -13,7 +13,7 @@
 
 #pragma once
 #include <ros/ros.h>
-#include "common_msgs/CICV_Location.h"
+#include "msg_gen/CICV_Location.h"
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseArray.h>
 #include <vector>

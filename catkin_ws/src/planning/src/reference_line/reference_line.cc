@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
+
 std::vector<Obstacle> AllObstacle;                        //感知一帧识别到的所有障碍物
 
 namespace dust{
@@ -63,9 +64,21 @@ void referenceLine::routingCallback(const geometry_msgs::PoseArray &routing){
 }
 //
 
-void referenceLine::gpsCallback(const common_msgs::CICV_Location &pGps){
-  gps_ = pGps;
+void referenceLine::gpsCallback(const perception_msgs::PerceptionLocalization &pGps){
+  // gps_ = pGps;
   gps_flag_ = {1};
+  gps_.header.frame_id = pGps.header.frame_id; // base_link
+  gps_.header.stamp = ros::Time::now();  
+  gps_.Position_x = pGps.position_x;
+  gps_.Position_y = pGps.position_y;
+  gps_.SimTim = 0;
+  gps_.Velocity_x = pGps.velocity_x;   // 单位 m/s 
+  gps_.Velocity_y = pGps.velocity_y;   // 单位 m/s
+  gps_.Accel_x = pGps.accel_x;
+  gps_.Accel_y = pGps.accel_y;
+  gps_.Angular_velocity_z = pGps.angular_velocity_z;
+  // gps_.Yaw = calculateYaw(pose_x, pose_y);  // 航向角
+  gps_.Yaw = pGps.yaw;
 }
 
 // 非referenceLine成员函数

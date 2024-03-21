@@ -1,4 +1,5 @@
 #include "Obstacle.h"
+
 #include <cmath>
 
 // std::vector<Cone> cones;
@@ -39,7 +40,7 @@ Obstacle::Obstacle(bool sub_obstacle)
   }
 }
 
-void Obstacle::setObstacles(const common_msgs::Perceptionobjects::ConstPtr& obstacle_info) // common_msgs::Perceptionobjects
+void Obstacle::setObstacles(const perception_msgs::PerceptionObjects& obstacle_info) // common_msgs::Perceptionobjects
 {
   /*--------------------------------------有效区域的构建--------------------------------------*/
   // //在有效范围内的所有障碍物
@@ -49,7 +50,7 @@ void Obstacle::setObstacles(const common_msgs::Perceptionobjects::ConstPtr& obst
   // oba.visualization(center, ego_head, eff_length, eff_width); //显示有效区域
 
   /*---------------------------------------获取障碍物信息----------------------------------------*/
-  if (obstacle_info->num > 0) //如果感知有识别到障碍物
+  if (obstacle_info.objs.size() > 0) //如果感知有识别到障碍物
   {
     // constxy.first = 92.0;
     // constxy.second = 44.0;
@@ -57,26 +58,26 @@ void Obstacle::setObstacles(const common_msgs::Perceptionobjects::ConstPtr& obst
     // startIndex = 0;
     // constxy.first = 80;
     // constxy.second = 80;
-    for (size_t i = 0; i < obstacle_info->num; ++i)
+    for (size_t i = 0; i < obstacle_info.objs.size(); ++i)
     {
       Obstacle obs;
       /*-------------------------------------每种形状都有的基本信息----------------------------------------*/
       //中心点
-      obs.centerpoint.position.x = obstacle_info->Perceptionobjects[i].xg;
-      obs.centerpoint.position.y = obstacle_info->Perceptionobjects[i].yg;
+      obs.centerpoint.position.x = obstacle_info.objs[i].x;
+      obs.centerpoint.position.y = obstacle_info.objs[i].y;
       obs.centerpoint.position.z = 0;
-      obs.obstacle_id = obstacle_info->Perceptionobjects[i].ID;       // id
-      obs.obstacle_type = obstacle_info->Perceptionobjects[i].type; //类型
+      obs.obstacle_id = obstacle_info.objs[i].id;       // id
+      obs.obstacle_type = obstacle_info.objs[i].type; //类型
       // obs.obstacle_shape = msgs->obstacle[i].shape.type;   //形状， ciav比赛中没有这个信息
       //朝向(要根感知确认一下)
-      obs.obstacle_theta = obstacle_info->Perceptionobjects[i].heading;
+      obs.obstacle_theta = obstacle_info.objs[i].heading;
       //时间戳
-      obs.timestamp_ = ros::Time().fromSec(obstacle_info->Perceptionobjects[i].SimTim); // 单位s ros::Time().fromSec(time);
+      obs.timestamp_ = ros::Time().fromSec(obstacle_info.header.time_stamp); // 单位s ros::Time().fromSec(time);
 
       //线速度（大地坐标系）// gt: 此处的速度，难道不是  v_xg 和 v_yg 的合成吗？
-      // obs.obstacle_velocity = obstacle_info->Perceptionobjects[i].v_xg/(obs.obstacle_theta + 0.01); 
-      obs.obstacle_velocity = sqrt(obstacle_info->Perceptionobjects[i].v_xg * obstacle_info->Perceptionobjects[i].v_xg
-                                    + obstacle_info->Perceptionobjects[i].v_yg * obstacle_info->Perceptionobjects[i].v_yg);
+      // obs.obstacle_velocity = obstacle_info.Perceptionobjects[i].v_xg/(obs.obstacle_theta + 0.01); 
+      obs.obstacle_velocity = sqrt(obstacle_info.objs[i].vxrel * obstacle_info.objs[i].vxrel
+                                    + obstacle_info.objs[i].vyrel * obstacle_info.objs[i].vyrel);
 
       if (obs.obstacle_velocity > 0.05) //动态障碍物
       {
@@ -96,9 +97,9 @@ void Obstacle::setObstacles(const common_msgs::Perceptionobjects::ConstPtr& obst
 
       /*--------------------------------------不同形状有差别的信息-----------------------------------------*/
 
-      if (obstacle_info->Perceptionobjects[i].type == 1 || obstacle_info->Perceptionobjects[i].type == 2 ||
-      obstacle_info->Perceptionobjects[i].type == 3 || obstacle_info->Perceptionobjects[i].type == 4 ||
-      obstacle_info->Perceptionobjects[i].type == 5 || obstacle_info->Perceptionobjects[i].type == 0) 
+      if (obstacle_info.objs[i].type == 1 || obstacle_info.objs[i].type == 2 ||
+      obstacle_info.objs[i].type == 3 || obstacle_info.objs[i].type == 4 ||
+      obstacle_info.objs[i].type == 5 || obstacle_info.objs[i].type == 0) 
       {
         obs.pinnacle.poses.clear(); //顶点暂时为空
         // if (obstacle_info->Perceptionobjects[i].type == 0)
@@ -117,11 +118,11 @@ void Obstacle::setObstacles(const common_msgs::Perceptionobjects::ConstPtr& obst
         //   obs.obstacle_width = obstacle_info->Perceptionobjects[i].width;
         //   obs.obstacle_height = obstacle_info->Perceptionobjects[i].height; 
         // }
-          obs.obstacle_radius = sqrt(pow(obstacle_info->Perceptionobjects[i].length, 2) + pow(obstacle_info->Perceptionobjects[i].width, 2)) / 2;
+          obs.obstacle_radius = sqrt(pow(obstacle_info.objs[i].length, 2) + pow(obstacle_info.objs[i].width, 2)) / 2;
           //长和宽
-          obs.obstacle_length = obstacle_info->Perceptionobjects[i].length;
-          obs.obstacle_width = obstacle_info->Perceptionobjects[i].width;
-          obs.obstacle_height = obstacle_info->Perceptionobjects[i].height; 
+          obs.obstacle_length = obstacle_info.objs[i].length;
+          obs.obstacle_width = obstacle_info.objs[i].width;
+          obs.obstacle_height = obstacle_info.objs[i].height; 
       }
 
       //对于锥桶应该重新用一个形状！！！

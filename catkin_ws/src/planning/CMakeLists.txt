@@ -115,7 +115,7 @@ include_directories(
     include/reference_line
     include/spline
     /usr/include/yaml-cpp
-    /catkin_ws/devel/include
+    /workspace/devel/include
     include ${catkin_INCLUDE_DIRS}
 )
 # set(lib_DIR /usr/lib/x84_64-linux-gnu) 

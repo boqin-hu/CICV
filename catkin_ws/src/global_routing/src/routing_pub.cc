@@ -170,8 +170,8 @@ int main(int argc, char *argv[])
 
 
     // 2.订阅rviz 中的 2D Pose Estimate 消息，再发布
-    ros::Subscriber sub = nh.subscribe("/initialpose", 1000, poseEstimateCallback);
-    cicv_location_pub = nh.advertise<common_msgs::CICV_Location>("/cicv_location",10); // 代替 vtd 给 planning 一帧的定位数据, 速度 6m/s
+    // ros::Subscriber sub = nh.subscribe("/initialpose", 1000, poseEstimateCallback);
+    // cicv_location_pub = nh.advertise<common_msgs::CICV_Location>("/cicv_location",10); // 代替 vtd 给 planning 一帧的定位数据, 速度 6m/s
 
 
     ros::Rate r(10);

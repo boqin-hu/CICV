@@ -49,9 +49,10 @@ include_directories(
     include/msg_gen
     include/controller.h
     include/newpid.h
-    /catkin_ws/devel/include
-    include ${catkin_INCLUDE_DIRS}
+    /workspace/devel/include
+    ${catkin_INCLUDE_DIRS}
 )
+message(STATUS  "DEBUG" ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(control_training ${SRC_FILE})
 add_executable(control_node ${SRC_FILE})
 # add_executable(lqr_controller src/lat_control/lqr_controller.cc)

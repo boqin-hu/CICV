@@ -4,7 +4,6 @@ project(common_msgs)
 find_package(catkin REQUIRED COMPONENTS
         message_generation
         std_msgs
-        geometry_msgs
         )
 
 
@@ -12,19 +11,37 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
         DIRECTORY msg
         FILES
-				Perceptionobject.msg
-				Perceptionobjects.msg
-				Lane.msg
-				Lanes.msg
-				CICV_Location.msg
-				Control_Test.msg
+             FaultInfo.msg
+             FaultVec.msg
+             Header.msg
+             CalibrationResult.msg
+             LidarCalibrationResult.msg
+             DRPoseWithTime.msg
+             EulerWithCovariance.msg
+             LLH.msg
+             NavStatus.msg
+             Pose.msg
+             PoseEuler.msg
+             PoseQuaternion.msg
+             Quaternion.msg
+             TimeStatistics.msg
+             TimeStatus.msg
+             Twist.msg
+             UnsureVar.msg
+             Vector3.msg
+             Vector3WithCovariance.msg
+             request.msg
+             response.msg
+             UdpMsg.msg
+             SpeedStreer.msg
+             Retrieval.msg
+             Control_Test.msg
 )
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
         DEPENDENCIES
         std_msgs
-        geometry_msgs
 )
 
 catkin_package(

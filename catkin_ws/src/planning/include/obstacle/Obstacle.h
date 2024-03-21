@@ -6,11 +6,12 @@
 #include "ObjectDecision.h"
 #include "boundarys.h"
 #include "msg_gen/obstacle.h"
-#include "common_msgs/Perceptionobject.h"
-#include "common_msgs/Perceptionobjects.h"
+#include "common/Perceptionobject.h"
+#include "common/Perceptionobjects.h"
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include "perception_msgs/PerceptionObjects.h"
 
 using namespace Eigen;
 
@@ -29,7 +30,7 @@ public:
    * 
    * @param msgs 
    */
-  void setObstacles(const common_msgs::Perceptionobjects::ConstPtr& obstacle_info);
+  void setObstacles(const perception_msgs::PerceptionObjects& obstacle_info);
   void SetSLBoundary(SL_Boundary &sl_boundary);
   void SetSTBoundary(ST_Boundary &st_boundary);
   const SL_Boundary &PerceptionSLBoundary() const;

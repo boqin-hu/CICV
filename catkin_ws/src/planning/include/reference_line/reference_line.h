@@ -36,7 +36,8 @@
 // #include "reference_point.h"
 // #include "trajectoryPoint.h"
 #include "planning_base.h"
-#include "common_msgs/CICV_Location.h"
+#include "common/CICV_Location.h"
+#include "perception_msgs/PerceptionLocalization.h"
 using namespace dust::planning;
 
 namespace dust{
@@ -67,7 +68,7 @@ public:
      * 
      * @param pGps 
      */
-    void gpsCallback(const common_msgs::CICV_Location &pGps);
+    void gpsCallback(const perception_msgs::PerceptionLocalization &pGps);
 	/**
 	 * @brief planning的入口函数
 	 * 

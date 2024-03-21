@@ -5,12 +5,14 @@
 #include "metaController.h"
 #include "lqr_control.h"
 #include "pure_pursuit_controller.h"
-#include "common_msgs/Control_Test.h"
-#include "common_msgs/CICV_Location.h"
+#include "msg_gen/Control_Test.h"
+#include "msg_gen/CICV_Location.h"
 #include<iostream>
 #include <deque>
 #include <boost/thread.hpp>
 #include "newpid.h"
+#include "perception_msgs/Trajectory.h"
+#include "perception_msgs/PerceptionLocalization.h"
 //#include "reference_line.h"
 
 using namespace dust::control;
@@ -40,6 +42,32 @@ std::shared_ptr<pid> velPid;
 // 		targetPath_[i] = {routing.trajectorypoint[i].x, routing.trajectorypoint[i].y, routing.trajectorypoint[i].kappa, routing.trajectorypoint[i].theta, routing.trajectorypoint[i].v};
 // 	}
 // }
+// void routingCallback(const perception_msgs::Trajectory &routing){
+// 	// 确保一开始只订阅一次
+// 	std::cout << "routing.size: " << routing.trajectoryinfo.trajectorypoints.size() << " targetPath_.size: " << targetPath_.pointsize << std::endl;
+//   targetPath_.trajectorypoint.clear();
+//   targetPath_.trajectorypoint.resize(routing.trajectoryinfo.trajectorypoints.size());
+//   targetPath_.pointsize = routing.trajectoryinfo.trajectorypoints.size();
+//   double kappa_old = 0.0;
+//   double time_old = 0.0;
+// 	for (int i = 0; i < routing.trajectoryinfo.trajectorypoints.size(); ++i)
+// 	{
+// 		targetPath_.trajectorypoint[i].x = routing.trajectoryinfo.trajectorypoints[i].position.x;
+// 		targetPath_.trajectorypoint[i].y = routing.trajectoryinfo.trajectorypoints[i].position.y;
+// 		targetPath_.trajectorypoint[i].kappa = routing.trajectoryinfo.trajectorypoints[i].curvature;
+// 		// targetPath_.trajectorypoint[i].dkappa = routing.trajectorypoint[i].dkappa;
+// 		targetPath_.trajectorypoint[i].v = routing.trajectoryinfo.trajectorypoints[i].velocity;
+// 		targetPath_.trajectorypoint[i].theta = routing.trajectoryinfo.trajectorypoints[i].heading;
+// 		targetPath_.trajectorypoint[i].s = routing.trajectoryinfo.trajectorypoints[i].s;
+// 		targetPath_.trajectorypoint[i].absolute_time = routing.trajectoryinfo.trajectorypoints[i].t;
+//     if (i != 0) {
+//       targetPath_.trajectorypoint[i].dkappa = (targetPath_.trajectorypoint[i].kappa - kappa_old) / 
+//       std::fmax((targetPath_.trajectorypoint[i].absolute_time - time_old), 1e-6);
+//     }
+//     kappa_old = targetPath_.trajectorypoint[i].kappa;
+//     time_old = routing.trajectoryinfo.trajectorypoints[i].t;
+// 	}
+// }
 void routingCallback(const msg_gen::trajectory &routing){
 	// 确保一开始只订阅一次
 	std::cout << "routing.size: " << routing.pointsize << " targetPath_.size: " << targetPath_.pointsize << std::endl;
@@ -58,7 +86,6 @@ void routingCallback(const msg_gen::trajectory &routing){
 		targetPath_.trajectorypoint[i].absolute_time = routing.trajectorypoint[i].absolute_time;
 	}
 }
-
 // void frenetPathCallback(const std::vector<ReferencePoint>& path)
 // {
 //   int n = path.size();
@@ -71,8 +98,22 @@ void routingCallback(const msg_gen::trajectory &routing){
 //   }
 // }
 
-void locationCallback(const common_msgs::CICV_Location& pGps){
-	gps_ = pGps;
+void locationCallback(const perception_msgs::PerceptionLocalization& pGps){
+	// gps_ = pGps;
+  gps_.header.frame_id = pGps.header.frame_id; // base_link
+  gps_.header.stamp = ros::Time::now();  
+  gps_.Position_x = pGps.position_x;
+  gps_.Position_y = pGps.position_y;
+  gps_.SimTim = 0;
+  gps_.Velocity_x = pGps.velocity_x;   // 单位 m/s 
+  gps_.Velocity_y = pGps.velocity_y;   // 单位 m/s
+  gps_.Accel_x = pGps.accel_x;
+  gps_.Accel_y = pGps.accel_y;
+  gps_.Angular_velocity_z = pGps.angular_velocity_z;
+  // gps_.Yaw = calculateYaw(pose_x, pose_y);  // 航向角
+  gps_.Yaw = pGps.yaw;
+  // gps_.Pitch = pGps.pitch;
+  // gps_.Roll = pGps.roll;
 }
 
 std::vector<int> getIndex(const msg_gen::trajectory& trajectory_point,const common_msgs::CICV_Location& pGps)
