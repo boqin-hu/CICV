@@ -17,22 +17,22 @@ lqrControl::lqrControl(const double poskp, const double poski, const double posk
     // cr = -321972.05;
     cr = -113382.9;
 
-    m = 950;
+    m = 3990;
 
     // 最大纵向加速度
     max_lateral_acceleration = 2.0;
     // 最大制动减速度
     standstill_acceleration = -3.0;
     // 轴距
-    wheel_base = 2.49;
+    wheel_base = 3.8;
     // 前轴中心到质心的距离
-    a = 1.15;
+    a = 1.75;
     // 后轴中心到质心的距离
-    b = 1.34;
+    b = 2.05;
 
     // 车辆绕z轴转动的转动惯量
     // Iz = 2858.5134;
-    Iz = 1000.0;
+    Iz = 3000.0;
 
     // 轮胎最大转角(rad)，暂时没用上
     wheel_max_degree = 0.6;

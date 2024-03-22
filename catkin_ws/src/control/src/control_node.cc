@@ -13,6 +13,7 @@
 #include "newpid.h"
 #include "perception_msgs/Trajectory.h"
 #include "perception_msgs/PerceptionLocalization.h"
+#include "tool.h"
 //#include "reference_line.h"
 
 using namespace dust::control;
@@ -24,24 +25,7 @@ msg_gen::trajectory targetPath_;
 common_msgs::CICV_Location gps_;
 std::shared_ptr<pid> posPid;
 std::shared_ptr<pid> velPid;
-// struct frenet_reference_line
-// {
-//   double x;
-//   double y;
-//   double s;
-// };
-// std::vector<frenet_reference_line> frenet_path;
 
-// void routingCallback(const msg_gen::trajectory &routing){
-// 	// 确保一开始只订阅一次
-// 	std::cout << "routing.size: " << routing.pointsize << " targetPath_.size: " << targetPath_.size() << std::endl;
-//   targetPath_.clear();
-//   targetPath_.resize(routing.pointsize);
-// 	for (int i = 0; i < routing.pointsize; ++i)
-// 	{
-// 		targetPath_[i] = {routing.trajectorypoint[i].x, routing.trajectorypoint[i].y, routing.trajectorypoint[i].kappa, routing.trajectorypoint[i].theta, routing.trajectorypoint[i].v};
-// 	}
-// }
 // void routingCallback(const perception_msgs::Trajectory &routing){
 // 	// 确保一开始只订阅一次
 // 	std::cout << "routing.size: " << routing.trajectoryinfo.trajectorypoints.size() << " targetPath_.size: " << targetPath_.pointsize << std::endl;
@@ -116,23 +100,27 @@ void locationCallback(const perception_msgs::PerceptionLocalization& pGps){
   // gps_.Roll = pGps.roll;
 }
 
-std::vector<int> getIndex(const msg_gen::trajectory& trajectory_point,const common_msgs::CICV_Location& pGps)
+std::pair<int, int> getIndex(const msg_gen::trajectory& trajectory_point,const common_msgs::CICV_Location& pGps)
 {
   double current_time = (double)ros::WallTime::now().toSec();
-  std::vector<int> Index;
-  Index.reserve(2);
   int index_time = 0;
   int index_pos = 0;
   double min_dis = (std::numeric_limits<int>::max)();
+  ROS_INFO("targetPath_ absolute_time : %f, current_time : %f", targetPath_.trajectorypoint[0].absolute_time, current_time);// target path的时间戳取值存在问题
   for (int i = 0; i < targetPath_.pointsize - 1; i++)
   {
-    if (targetPath_.trajectorypoint[i].absolute_time <= current_time&&targetPath_.trajectorypoint[i + 1].absolute_time > current_time)
-    {
+    if (targetPath_.trajectorypoint[i].absolute_time <= current_time && targetPath_.trajectorypoint[i + 1].absolute_time > current_time) {
       index_time = i;
+      break;
+    } else if (targetPath_.trajectorypoint[0].absolute_time > current_time) {
+      index_time = 0;
+      break;
+    } else if (targetPath_.trajectorypoint[targetPath_.pointsize - 1].absolute_time <= current_time) {
+      index_time = targetPath_.pointsize - 1;
+      break;
     }
   }
-  // ROS_WARN("目标点的速度是：%.2f",targetPath_.trajectorypoint[index_time].v);
-  Index.push_back(index_time);
+  
   for (int i = 0; i < targetPath_.pointsize; i++)
   {
     int dis = sqrt(pow(targetPath_.trajectorypoint[i].x - pGps.Position_x,2) + pow(targetPath_.trajectorypoint[i].y - pGps.Position_y,2));
@@ -142,8 +130,7 @@ std::vector<int> getIndex(const msg_gen::trajectory& trajectory_point,const comm
       index_pos = i;
     }
   }
-  Index.push_back(index_pos);
-  return Index;
+  return {index_time, index_pos};
 }
 
 
@@ -173,7 +160,9 @@ int main(int argc, char **argv) {
   }
   posPid = std::make_shared<pid>(0.6,0.02,0.0);
   velPid = std::make_shared<pid>(0.2,0.02,0.0);
-
+  std::shared_ptr<NumericMeanFilter> s_ref_mean = std::make_shared<NumericMeanFilter>(50);
+  std::shared_ptr<NumericMeanFilter> s_err_mean = std::make_shared<NumericMeanFilter>(20);
+  std::shared_ptr<NumericMeanFilter> ego_s_mean = std::make_shared<NumericMeanFilter>(50);
 
   ros::NodeHandle n_;
   // ros sub
@@ -194,26 +183,41 @@ int main(int argc, char **argv) {
      // 先订阅到消息才可以发布 
     if (targetPath_.pointsize > 0) {
 
-      std::vector<int> index = getIndex(targetPath_,gps_);
-      Eigen::Matrix<double, 2, 1> d_err;
-      d_err << gps_.Position_x - targetPath_.trajectorypoint[index[1]].x, gps_.Position_y - targetPath_.trajectorypoint[index[1]].y;
-      Eigen::Matrix<double, 2, 1> tor;
-      tor << cos(targetPath_.trajectorypoint[index[1]].theta), sin(targetPath_.trajectorypoint[index[1]].theta);
-      double es = tor.transpose() * d_err;
-      double ego_vel = sqrt(pow(gps_.Velocity_x,2) + pow(gps_.Velocity_y,2));
-      double steer = control_base->calculateCmd(targetPath_, gps_);
-      double speed_comp = posPid->PID_Control(targetPath_.trajectorypoint[index[0]].s, targetPath_.trajectorypoint[index[1]].s + es);
+      std::pair<int, int> index = getIndex(targetPath_,gps_);
+      
+      double vel_spd = sqrt(pow(gps_.Velocity_x,2) + pow(gps_.Velocity_y,2));
 
-      ROS_ERROR("位置误差：%.2f", targetPath_.trajectorypoint[index[0]].s - targetPath_.trajectorypoint[index[1]].s - es);
-      ROS_ERROR("速度误差：%.2f", targetPath_.trajectorypoint[index[0]].v - ego_vel);
+      const double d_err_x = gps_.Position_x - targetPath_.trajectorypoint[std::get<1>(index)].x;
+      const double d_err_y = gps_.Position_y - targetPath_.trajectorypoint[std::get<1>(index)].y;
 
-      double acc_comp = velPid->PID_Control(targetPath_.trajectorypoint[index[0]].v + speed_comp, ego_vel);
-      double throttle_break_cmd = targetPath_.trajectorypoint[index[0]].a + acc_comp;
+      double reference_s = targetPath_.trajectorypoint[std::get<0>(index)].s;
+      reference_s = s_ref_mean->filt(reference_s);
+      const double matched_s = targetPath_.trajectorypoint[std::get<1>(index)].s;
+      const double matched_theta = targetPath_.trajectorypoint[std::get<1>(index)].theta;
+      double ego_s = matched_s + d_err_x * std::cos(matched_theta) + d_err_y * std::sin(matched_theta);
+      ego_s = ego_s_mean->filt(ego_s);
+      double s_error = reference_s - ego_s;
+      s_error = s_err_mean->filt(s_error);
+
+      double speed_comp = posPid->PID_Control(reference_s, ego_s);
+
+      const double theta_diff = gps_.Yaw - targetPath_.trajectorypoint[std::get<1>(index)].theta;
+      const double ego_d = d_err_y * std::cos(matched_theta) + d_err_x * std::sin(matched_theta);
+      double matched_k = targetPath_.trajectorypoint[std::get<1>(index)].kappa;
+      double denominator1 =
+          (1 - matched_k * (ego_d)) <= 0.0 ? 1.0 : (1 - matched_k * (ego_d));
+      const double ego_v = vel_spd * std::cos(theta_diff) / denominator1;
+      double acc_comp = velPid->PID_Control(targetPath_.trajectorypoint[std::get<0>(index)].v + speed_comp, ego_v);
+
+      double throttle_break_cmd = targetPath_.trajectorypoint[std::get<0>(index)].a + acc_comp;
+
+      double steer = control_base->calculateCmd(targetPath_, gps_); // Todo(boqin.hu) 优化
+
       common_msgs::Control_Test control_info;
       control_info.header.frame_id = "world";
       control_info.header.stamp = ros::Time::now();
       control_info.Gear = 4;
-      steer = 19 * steer;
+      steer = 29 * steer;
       if (steer >= 540)
       {
         steer = 540;
@@ -225,24 +229,26 @@ int main(int argc, char **argv) {
       control_info.SteeringAngle = steer;
       if (throttle_break_cmd >=0)
       {
-        control_info.ThrottlePedal = throttle_break_cmd;
+        throttle_break_cmd = std::fmin(throttle_break_cmd, 2.0);
+        control_info.ThrottlePedal = throttle_break_cmd * 50.0;
         control_info.BrakePedal = 0.0;
       }
       else
       {
-        control_info.BrakePedal = -throttle_break_cmd;
+        throttle_break_cmd = std::fmin(-throttle_break_cmd, 3.0);
+        control_info.BrakePedal = throttle_break_cmd * 100.0 / 3.0;
         control_info.ThrottlePedal = 0.0;
       }
 
-      // 到达终点发制动
-      const double endpoint_x = 100.305;
-      const double endpoint_y = 33.576;
+      // 到达终点发制动 x: 116.490491,y: 39.729672,z: 0.0
+      const double endpoint_x = 116.490491;
+      const double endpoint_y = 39.729672;
       static bool is_in_endpoint = false;
       if (pow((gps_.Position_x - endpoint_x), 2) + pow((gps_.Position_y - endpoint_y), 2) < 28) {
         is_in_endpoint = true;
       }
       if (is_in_endpoint) {
-        control_info.BrakePedal = 1.0;
+        control_info.BrakePedal = 50.0;
         control_info.ThrottlePedal = 0.0;
         control_info.SteeringAngle = 0.0;
       }
