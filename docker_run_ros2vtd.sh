@@ -8,6 +8,6 @@ docker run \
     --name=Cicv_ros2vtd \
     --network=host \
     -e ROS_MASTER_URI=http://localhost:11311 \
-    ab584eeba99e \
+    cicv_hbq:latest \
     /bin/bash 
 
