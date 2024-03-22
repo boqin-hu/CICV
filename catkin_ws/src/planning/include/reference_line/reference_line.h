@@ -38,6 +38,8 @@
 #include "planning_base.h"
 #include "common/CICV_Location.h"
 #include "perception_msgs/PerceptionLocalization.h"
+#include "perception_msgs/Trajectory.h"
+
 using namespace dust::planning;
 
 namespace dust{

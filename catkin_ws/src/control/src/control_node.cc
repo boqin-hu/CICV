@@ -42,50 +42,55 @@ std::shared_ptr<pid> velPid;
 // 		targetPath_[i] = {routing.trajectorypoint[i].x, routing.trajectorypoint[i].y, routing.trajectorypoint[i].kappa, routing.trajectorypoint[i].theta, routing.trajectorypoint[i].v};
 // 	}
 // }
-// void routingCallback(const perception_msgs::Trajectory &routing){
+void routingCallback(const perception_msgs::Trajectory &routing){
+	// 确保一开始只订阅一次
+	std::cout << "routing.size: " << routing.trajectoryinfo.trajectorypoints.size() << " targetPath_.size: " << targetPath_.pointsize << std::endl;
+  targetPath_.trajectorypoint.clear();
+  targetPath_.trajectorypoint.resize(routing.trajectoryinfo.trajectorypoints.size());
+  targetPath_.pointsize = routing.trajectoryinfo.trajectorypoints.size();
+  double kappa_old = 0.0;
+  double time_old = 0.0;
+  double v_old = 0.0;
+	for (int i = 0; i < routing.trajectoryinfo.trajectorypoints.size(); ++i)
+	{
+		targetPath_.trajectorypoint[i].x = routing.trajectoryinfo.trajectorypoints[i].position.x;
+		targetPath_.trajectorypoint[i].y = routing.trajectoryinfo.trajectorypoints[i].position.y;
+		targetPath_.trajectorypoint[i].kappa = routing.trajectoryinfo.trajectorypoints[i].curvature;
+		// targetPath_.trajectorypoint[i].dkappa = routing.trajectorypoint[i].dkappa;
+		targetPath_.trajectorypoint[i].v = routing.trajectoryinfo.trajectorypoints[i].velocity;
+		targetPath_.trajectorypoint[i].theta = routing.trajectoryinfo.trajectorypoints[i].heading;
+		targetPath_.trajectorypoint[i].s = routing.trajectoryinfo.trajectorypoints[i].s;
+		targetPath_.trajectorypoint[i].absolute_time = routing.trajectoryinfo.trajectorypoints[i].t;
+    if (i != 0) {
+      targetPath_.trajectorypoint[i].dkappa = (targetPath_.trajectorypoint[i].kappa - kappa_old) / 
+      std::fmax((targetPath_.trajectorypoint[i].absolute_time - time_old), 1e-6);
+      targetPath_.trajectorypoint[i].a = (targetPath_.trajectorypoint[i].v - v_old) / 
+      std::fmax((targetPath_.trajectorypoint[i].absolute_time - time_old), 1e-6);
+    }
+    kappa_old = targetPath_.trajectorypoint[i].kappa;
+    v_old = targetPath_.trajectorypoint[i].v;
+    time_old = routing.trajectoryinfo.trajectorypoints[i].t;
+	}
+  targetPath_.trajectorypoint[0].a = targetPath_.trajectorypoint[1].a;
+}
+// void routingCallback(const msg_gen/Trajectory &routing){
 // 	// 确保一开始只订阅一次
-// 	std::cout << "routing.size: " << routing.trajectoryinfo.trajectorypoints.size() << " targetPath_.size: " << targetPath_.pointsize << std::endl;
+// 	std::cout << "routing.size: " << routing.pointsize << " targetPath_.size: " << targetPath_.pointsize << std::endl;
 //   targetPath_.trajectorypoint.clear();
-//   targetPath_.trajectorypoint.resize(routing.trajectoryinfo.trajectorypoints.size());
-//   targetPath_.pointsize = routing.trajectoryinfo.trajectorypoints.size();
-//   double kappa_old = 0.0;
-//   double time_old = 0.0;
-// 	for (int i = 0; i < routing.trajectoryinfo.trajectorypoints.size(); ++i)
+//   targetPath_.trajectorypoint.resize(routing.pointsize);
+//   targetPath_.pointsize = routing.pointsize;
+// 	for (int i = 0; i < routing.pointsize; ++i)
 // 	{
-// 		targetPath_.trajectorypoint[i].x = routing.trajectoryinfo.trajectorypoints[i].position.x;
-// 		targetPath_.trajectorypoint[i].y = routing.trajectoryinfo.trajectorypoints[i].position.y;
-// 		targetPath_.trajectorypoint[i].kappa = routing.trajectoryinfo.trajectorypoints[i].curvature;
-// 		// targetPath_.trajectorypoint[i].dkappa = routing.trajectorypoint[i].dkappa;
-// 		targetPath_.trajectorypoint[i].v = routing.trajectoryinfo.trajectorypoints[i].velocity;
-// 		targetPath_.trajectorypoint[i].theta = routing.trajectoryinfo.trajectorypoints[i].heading;
-// 		targetPath_.trajectorypoint[i].s = routing.trajectoryinfo.trajectorypoints[i].s;
-// 		targetPath_.trajectorypoint[i].absolute_time = routing.trajectoryinfo.trajectorypoints[i].t;
-//     if (i != 0) {
-//       targetPath_.trajectorypoint[i].dkappa = (targetPath_.trajectorypoint[i].kappa - kappa_old) / 
-//       std::fmax((targetPath_.trajectorypoint[i].absolute_time - time_old), 1e-6);
-//     }
-//     kappa_old = targetPath_.trajectorypoint[i].kappa;
-//     time_old = routing.trajectoryinfo.trajectorypoints[i].t;
+// 		targetPath_.trajectorypoint[i].x = routing.trajectorypoint[i].x;
+// 		targetPath_.trajectorypoint[i].y = routing.trajectorypoint[i].y;
+// 		targetPath_.trajectorypoint[i].kappa= routing.trajectorypoint[i].kappa;
+// 		targetPath_.trajectorypoint[i].dkappa = routing.trajectorypoint[i].dkappa;
+// 		targetPath_.trajectorypoint[i].v = routing.trajectorypoint[i].v;
+// 		targetPath_.trajectorypoint[i].theta = routing.trajectorypoint[i].theta;
+// 		targetPath_.trajectorypoint[i].s = routing.trajectorypoint[i].s;
+// 		targetPath_.trajectorypoint[i].absolute_time = routing.trajectorypoint[i].absolute_time;
 // 	}
 // }
-void routingCallback(const msg_gen::trajectory &routing){
-	// 确保一开始只订阅一次
-	std::cout << "routing.size: " << routing.pointsize << " targetPath_.size: " << targetPath_.pointsize << std::endl;
-  targetPath_.trajectorypoint.clear();
-  targetPath_.trajectorypoint.resize(routing.pointsize);
-  targetPath_.pointsize = routing.pointsize;
-	for (int i = 0; i < routing.pointsize; ++i)
-	{
-		targetPath_.trajectorypoint[i].x = routing.trajectorypoint[i].x;
-		targetPath_.trajectorypoint[i].y = routing.trajectorypoint[i].y;
-		targetPath_.trajectorypoint[i].kappa= routing.trajectorypoint[i].kappa;
-		targetPath_.trajectorypoint[i].dkappa = routing.trajectorypoint[i].dkappa;
-		targetPath_.trajectorypoint[i].v = routing.trajectorypoint[i].v;
-		targetPath_.trajectorypoint[i].theta = routing.trajectorypoint[i].theta;
-		targetPath_.trajectorypoint[i].s = routing.trajectorypoint[i].s;
-		targetPath_.trajectorypoint[i].absolute_time = routing.trajectorypoint[i].absolute_time;
-	}
-}
 // void frenetPathCallback(const std::vector<ReferencePoint>& path)
 // {
 //   int n = path.size();
@@ -177,7 +182,7 @@ int main(int argc, char **argv) {
 
   ros::NodeHandle n_;
   // ros sub
-  ros::Subscriber planning_sub = n_.subscribe("/trajectory_waypoints", 10, routingCallback);
+  ros::Subscriber planning_sub = n_.subscribe("/cicv_amr_trajectory", 10, routingCallback);
   // ros::Subscriber planning_sub = n_.subscribe("/routing", 10, routingCallback);
 
   ros::Subscriber gps_sub = n_.subscribe("/cicv_location", 10, locationCallback);
