@@ -124,16 +124,6 @@ namespace message_traits
 
 
 template <class ContainerAllocator>
-struct IsMessage< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> >
-  : TrueType
-  { };
-
-template <class ContainerAllocator>
-struct IsMessage< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> const>
-  : TrueType
-  { };
-
-template <class ContainerAllocator>
 struct IsFixedSize< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> >
   : FalseType
   { };
@@ -141,6 +131,16 @@ struct IsFixedSize< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> >
 template <class ContainerAllocator>
 struct IsFixedSize< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> const>
   : FalseType
+  { };
+
+template <class ContainerAllocator>
+struct IsMessage< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> >
+  : TrueType
+  { };
+
+template <class ContainerAllocator>
+struct IsMessage< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> const>
+  : TrueType
   { };
 
 template <class ContainerAllocator>
@@ -159,12 +159,12 @@ struct MD5Sum< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "c7d900a70debd0d52467ed4c06e4dc57";
+    return "a4d12622c8e266339735f0b7cdd51819";
   }
 
   static const char* value(const ::perception_msgs::TrajectoryInfo_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0xc7d900a70debd0d5ULL;
-  static const uint64_t static_value2 = 0x2467ed4c06e4dc57ULL;
+  static const uint64_t static_value1 = 0xa4d12622c8e26633ULL;
+  static const uint64_t static_value2 = 0x9735f0b7cdd51819ULL;
 };
 
 template<class ContainerAllocator>
@@ -190,7 +190,6 @@ struct Definition< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> >
 "int8 light_type\n"
 "string[] lane_ids\n"
 "TrajectoryPoint[] trajectorypoints\n"
-"\n"
 "================================================================================\n"
 "MSG: perception_msgs/TrajectoryPoint\n"
 "Point2D position\n"
@@ -199,6 +198,7 @@ struct Definition< ::perception_msgs::TrajectoryInfo_<ContainerAllocator> >
 "float32 curvature\n"
 "float32 s\n"
 "float32 t\n"
+"float32 a\n"
 "int8 point_type\n"
 "\n"
 "================================================================================\n"

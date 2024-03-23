@@ -38,6 +38,8 @@
 #include "planning_base.h"
 #include "common/CICV_Location.h"
 #include "perception_msgs/PerceptionLocalization.h"
+#include "perception_msgs/Trajectory.h"
+#include "map_msgs/RoutePlan.h"
 using namespace dust::planning;
 
 namespace dust{
@@ -62,7 +64,7 @@ public:
 	 * 
 	 * @param routing 
 	 */
-	void routingCallback(const geometry_msgs::PoseArray &routing);
+	void routingCallback(const map_msgs::RoutePlan &routing);
 	/**
      * @brief gps的回调函数
      * 

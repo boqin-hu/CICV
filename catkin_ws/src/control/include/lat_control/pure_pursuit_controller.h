@@ -13,7 +13,7 @@ public:
 	purePursuit(const double poskp, const double poski, const double poskd,const double velkp, const double velki, const double velkd);
 	~purePursuit() = default;
 
-	void routingCallback(const msg_gen::trajectory &routing);
+	// void routingCallback(const msg_gen::trajectory &routing);
 	// void routingCallback(const geometry_msgs::PoseArray &routing);
 	void gpsCallback(const msg_gen::gps &pGps);
 	void run();

@@ -4,4 +4,5 @@ float32 heading
 float32 curvature
 float32 s
 float32 t
+float32 a
 int8 point_type

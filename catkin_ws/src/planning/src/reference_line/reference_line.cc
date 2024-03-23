@@ -4,6 +4,7 @@
 #include <vector>
 #include <fstream>
 
+
 std::vector<Obstacle> AllObstacle;                        //感知一帧识别到的所有障碍物
 
 namespace dust{
@@ -17,11 +18,11 @@ referenceLine::referenceLine(){
     ros::param::get("which_planners", this->which_planners);
 
     // subscriber
-    routing_sub_ = n_.subscribe("/routing", 10, &referenceLine::routingCallback, this);
+    routing_sub_ = n_.subscribe("/tprouteplan", 10, &referenceLine::routingCallback, this);
     gps_sub_ = n_.subscribe("/cicv_location", 10, &referenceLine::gpsCallback, this);
 
     // publisher
-    trajectory_pub_ = n_.advertise<msg_gen::trajectory>("/trajectory_waypoints", 10);               //发布局部轨迹给 control
+    trajectory_pub_ = n_.advertise<perception_msgs::Trajectory>("/cicv_amr_trajectory", 10);               //发布局部轨迹给 control
     rviz_pub_ = n_.advertise<nav_msgs::Path>("/rviz_local_path", 10);                               //在rviz中打印局部路径
     rviz_reference_pub_ = n_.advertise<geometry_msgs::PoseArray>("/rviz_global_path", 10);          //在rviz中打印全局路径
     rviz_obstacle_pub_ = n_.advertise<visualization_msgs::MarkerArray>("/rviz_obstacles", 10);      // 在rviz中显示障碍物
@@ -44,19 +45,19 @@ referenceLine::referenceLine(){
     
     
 }
-void referenceLine::routingCallback(const geometry_msgs::PoseArray &routing){
-    routing_waypoints_ = Eigen::MatrixXd::Zero(routing.poses.size(), 3);
+void referenceLine::routingCallback(const map_msgs::RoutePlan &routing){
+    routing_waypoints_ = Eigen::MatrixXd::Zero(1, 3);
     // 确保一开始只订阅一次
     setlocale(LC_ALL,"");
     if (routing_waypoint_flag_.size() < 1)
     {
-        routing_waypoint_flag_.push_back(routing.poses[0].position.x);
-        for (int i = 0; i < routing.poses.size(); ++i)
-        {
-          routing_waypoints_(i, 0) = routing.poses[i].position.x;
-          routing_waypoints_(i, 1) = routing.poses[i].position.y;
-          routing_waypoints_(i, 2) = routing.poses[i].position.z;
-        }
+        routing_waypoint_flag_.push_back(routing.point.xg);
+        // for (int i = 0; i < routing.poses.size(); ++i)
+        // {
+          routing_waypoints_(0, 0) = routing.point.xg;
+          routing_waypoints_(0, 1) = routing.point.yg;
+          routing_waypoints_(0, 2) = routing.point.heading;
+        // }
         // 参考线的平滑计算只计算一次
         referenceLine_split(routing_waypoints_);
         ROS_INFO("参考线已平滑...");
@@ -225,30 +226,30 @@ void  referenceLine::run() {
       // }
 
       // 3.将 planning 规划的局部轨迹,通过话题 /trajectory_waypoints 发送给控制
-      msg_gen::trajectory trajectory_d;
-      trajectory_d.trajectorypoint.clear();
-      trajectory_d.pointsize = pre_trajectory_.size();
+      perception_msgs::Trajectory trajectory_d;
+      trajectory_d.trajectoryinfo.trajectorypoints.clear();
+      // trajectory_d.pointsize = pre_trajectory_.size();
       for (int i = 0; i < pre_trajectory_.size();++i){
-        msg_gen::TrajectoryPoint TrajectoryPoint_d;
-        TrajectoryPoint_d.x = pre_trajectory_[i].x;
-        TrajectoryPoint_d.y = pre_trajectory_[i].y;
-        TrajectoryPoint_d.z = pre_trajectory_[i].z;
-        TrajectoryPoint_d.theta = pre_trajectory_[i].theta;
-        TrajectoryPoint_d.kappa = pre_trajectory_[i].kappa;
-        TrajectoryPoint_d.dkappa = pre_trajectory_[i].dkappa;
-        TrajectoryPoint_d.v = pre_trajectory_[i].v;
+        perception_msgs::TrajectoryPoint TrajectoryPoint_d;
+        TrajectoryPoint_d.position.x = pre_trajectory_[i].x;
+        TrajectoryPoint_d.position.y = pre_trajectory_[i].y;
+        // TrajectoryPo int_d.z = pre_trajectory_[i].z;
+        TrajectoryPoint_d.heading = pre_trajectory_[i].theta;
+        TrajectoryPoint_d.curvature = pre_trajectory_[i].kappa;
+        // TrajectoryPoint_d.dkappa = pre_trajectory_[i].dkappa;
+        TrajectoryPoint_d.velocity = pre_trajectory_[i].v;
         TrajectoryPoint_d.a = pre_trajectory_[i].a;
-        TrajectoryPoint_d.relative_time = pre_trajectory_[i].relative_time;
-        TrajectoryPoint_d.absolute_time = pre_trajectory_[i].absolute_time;
-        TrajectoryPoint_d.d = pre_trajectory_[i].d;
-        TrajectoryPoint_d.d_d = pre_trajectory_[i].d_d;
-        TrajectoryPoint_d.d_dd = pre_trajectory_[i].d_dd;
+        // TrajectoryPoint_d.relative_time = pre_trajectory_[i].relative_time;
+        TrajectoryPoint_d.t = pre_trajectory_[i].absolute_time;
+        // TrajectoryPoint_d.d = pre_trajectory_[i].d;
+        // TrajectoryPoint_d.d_d = pre_trajectory_[i].d_d;
+        // TrajectoryPoint_d.d_dd = pre_trajectory_[i].d_dd;
         TrajectoryPoint_d.s = pre_trajectory_[i].s;
-        TrajectoryPoint_d.s_d = pre_trajectory_[i].s_d;
-        TrajectoryPoint_d.s_dd = pre_trajectory_[i].s_dd;
-        TrajectoryPoint_d.s_ddd = pre_trajectory_[i].s_ddd;
-        TrajectoryPoint_d.d_ddd = pre_trajectory_[i].d_ddd;
-        trajectory_d.trajectorypoint.emplace_back(TrajectoryPoint_d);
+        // TrajectoryPoint_d.s_d = pre_trajectory_[i].s_d;
+        // TrajectoryPoint_d.s_dd = pre_trajectory_[i].s_dd;
+        // TrajectoryPoint_d.s_ddd = pre_trajectory_[i].s_ddd;
+        // TrajectoryPoint_d.d_ddd = pre_trajectory_[i].d_ddd;
+        trajectory_d.trajectoryinfo.trajectorypoints.emplace_back(TrajectoryPoint_d);
       }
       trajectory_pub_.publish(trajectory_d);
 
