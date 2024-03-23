@@ -28,10 +28,10 @@ std::shared_ptr<pid> velPid;
 
 void routingCallback(const perception_msgs::Trajectory &routing){
 	// 确保一开始只订阅一次
-  std::cout << "routing.frame_number" << routing.frame_number << std::endl;
-  std::cout << "routing.trajectoryinfo.path_id" << routing.trajectoryinfo.path_id << std::endl;
-  std::cout << "routing.trajectoryinfo.path_id" << routing.trajectoryinfo.path_id << std::endl;
-	std::cout << "routing.size: " << routing.trajectoryinfo.trajectorypoints.size() << " targetPath_.size: " << targetPath_.pointsize << std::endl;
+  // std::cout << "routing.header.time_stamp" << routing.header.stamp << std::endl;
+  // std::cout << "routing.trajectoryinfo.total_path_time" << routing.trajectoryinfo.total_path_time << std::endl;
+  // std::cout << "routing.trajectoryinfo.trajectorypoints[0].t" << routing.trajectoryinfo.trajectorypoints[0].t << std::endl;
+	// std::cout << "routing.size: " << routing.trajectoryinfo.trajectorypoints.size() << " targetPath_.size: " << targetPath_.pointsize << std::endl;
   targetPath_.trajectorypoint.clear();
   targetPath_.trajectorypoint.resize(routing.trajectoryinfo.trajectorypoints.size());
   targetPath_.pointsize = routing.trajectoryinfo.trajectorypoints.size();
@@ -49,6 +49,9 @@ void routingCallback(const perception_msgs::Trajectory &routing){
     targetPath_.trajectorypoint[i].a = routing.trajectoryinfo.trajectorypoints[i].a;
 		targetPath_.trajectorypoint[i].absolute_time = routing.trajectoryinfo.trajectorypoints[i].t;
     if (i != 0) {
+      if (routing.trajectoryinfo.trajectorypoints[i].t < 1e-6){
+        targetPath_.trajectorypoint[i].absolute_time = targetPath_.trajectorypoint[i-1].absolute_time + 0.02;
+      }
       targetPath_.trajectorypoint[i].dkappa = (targetPath_.trajectorypoint[i].kappa - kappa_old) / 
       std::fmax((targetPath_.trajectorypoint[i].absolute_time - time_old), 1e-6);
     }
@@ -76,7 +79,6 @@ void routingCallback(const perception_msgs::Trajectory &routing){
 // }
 
 void locationCallback(const perception_msgs::PerceptionLocalization& pGps){
-  std::cout << "running here05!!!" << std::endl;
 	// gps_ = pGps;
   gps_.header.frame_id = pGps.header.frame_id; // base_link
   gps_.header.stamp = ros::Time::now();  
@@ -101,20 +103,20 @@ std::pair<int, int> getIndex(const msg_gen::trajectory& trajectory_point,const c
   int index_pos = 0;
   double min_dis = (std::numeric_limits<int>::max)();
   ROS_INFO("targetPath_ absolute_time : %f, current_time : %f", targetPath_.trajectorypoint[0].absolute_time, current_time);// target path的时间戳取值存在问题
-  for (int i = 0; i < targetPath_.pointsize - 1; i++)
-  {
-    if (targetPath_.trajectorypoint[i].absolute_time <= current_time && targetPath_.trajectorypoint[i + 1].absolute_time > current_time) {
-      index_time = i;
-      break;
-    } else if (targetPath_.trajectorypoint[0].absolute_time > current_time) {
-      index_time = 0;
-      break;
-    } else if (targetPath_.trajectorypoint[targetPath_.pointsize - 1].absolute_time <= current_time) {
-      index_time = targetPath_.pointsize - 1;
-      break;
-    }
-  }
-  
+  // for (int i = 0; i < targetPath_.pointsize - 1; i++)
+  // {
+  //   if (targetPath_.trajectorypoint[i].absolute_time <= current_time && targetPath_.trajectorypoint[i + 1].absolute_time > current_time) {
+  //     index_time = i;
+  //     break;
+  //   } else if (targetPath_.trajectorypoint[0].absolute_time > current_time) {
+  //     index_time = 0;
+  //     break;
+  //   } else if (targetPath_.trajectorypoint[targetPath_.pointsize - 1].absolute_time <= current_time) {
+  //     index_time = targetPath_.pointsize - 1;
+  //     break;
+  //   }
+  // }
+  index_time = 0;
   for (int i = 0; i < targetPath_.pointsize; i++)
   {
     int dis = sqrt(pow(targetPath_.trajectorypoint[i].x - pGps.Position_x,2) + pow(targetPath_.trajectorypoint[i].y - pGps.Position_y,2));
@@ -152,13 +154,16 @@ int main(int argc, char **argv) {
       control_base = std::make_shared<purePursuit>(0.1,0.06,0.0,0.1,0.06,0.0);
       break;
   }
-  std::cout << "running here01!!!" << std::endl;
   posPid = std::make_shared<pid>(0.6,0.02,0.0);
   velPid = std::make_shared<pid>(0.2,0.02,0.0);
   std::shared_ptr<NumericMeanFilter> s_ref_mean = std::make_shared<NumericMeanFilter>(50);
   std::shared_ptr<NumericMeanFilter> s_err_mean = std::make_shared<NumericMeanFilter>(20);
   std::shared_ptr<NumericMeanFilter> ego_s_mean = std::make_shared<NumericMeanFilter>(50);
-  std::cout << "running here02!!!" << std::endl;
+  std::shared_ptr<NumericMeanFilter> steer_cmd_mean = std::make_shared<NumericMeanFilter>(5);
+  std::shared_ptr<LowPassFilter> ego_d_filter = std::make_shared<LowPassFilter>(0.1, 0.9);
+  std::shared_ptr<LowPassFilter> heading_err_filter = std::make_shared<LowPassFilter>(0.1, 0.9);
+  std::shared_ptr<LowPassFilter> ego_d_rate_filter = std::make_shared<LowPassFilter>(0.2, 0.8);
+  std::shared_ptr<LowPassFilter> heading_err_rate_filter = std::make_shared<LowPassFilter>(0.2, 0.8);
   ros::NodeHandle n_;
   // ros sub
   ros::Subscriber planning_sub = n_.subscribe("/cicv_amr_trajectory", 10, routingCallback);
@@ -175,22 +180,22 @@ int main(int argc, char **argv) {
   ros::Rate loop_rate(50);
   while (ros::ok())
   {
-    std::cout << "running here03!!!" << std::endl;
     std::cout << "targetPath_.pointsize = " << targetPath_.pointsize << std::endl;
      // 先订阅到消息才可以发布 
     if (targetPath_.pointsize > 0) {
 
       std::pair<int, int> index = getIndex(targetPath_,gps_);
-      
+      const auto& matched_point = targetPath_.trajectorypoint[std::get<1>(index)];
+      const auto& ref_point = targetPath_.trajectorypoint[std::get<0>(index)];
+
       double vel_spd = sqrt(pow(gps_.Velocity_x,2) + pow(gps_.Velocity_y,2));
+      const double d_err_x = gps_.Position_x - matched_point.x;
+      const double d_err_y = gps_.Position_y - matched_point.y;
 
-      const double d_err_x = gps_.Position_x - targetPath_.trajectorypoint[std::get<1>(index)].x;
-      const double d_err_y = gps_.Position_y - targetPath_.trajectorypoint[std::get<1>(index)].y;
-
-      double reference_s = targetPath_.trajectorypoint[std::get<0>(index)].s;
+      double reference_s = ref_point.s;
       reference_s = s_ref_mean->filt(reference_s);
-      const double matched_s = targetPath_.trajectorypoint[std::get<1>(index)].s;
-      const double matched_theta = targetPath_.trajectorypoint[std::get<1>(index)].theta;
+      const double matched_s = matched_point.s;
+      const double matched_theta = matched_point.theta;
       double ego_s = matched_s + d_err_x * std::cos(matched_theta) + d_err_y * std::sin(matched_theta);
       ego_s = ego_s_mean->filt(ego_s);
       double s_error = reference_s - ego_s;
@@ -198,18 +203,29 @@ int main(int argc, char **argv) {
 
       double speed_comp = posPid->PID_Control(reference_s, ego_s);
 
-      const double theta_diff = gps_.Yaw - targetPath_.trajectorypoint[std::get<1>(index)].theta;
+      const double theta_diff = gps_.Yaw - matched_point.theta;
       const double ego_d = d_err_y * std::cos(matched_theta) + d_err_x * std::sin(matched_theta);
-      double matched_k = targetPath_.trajectorypoint[std::get<1>(index)].kappa;
+      double matched_k = matched_point.kappa;
       double denominator1 =
           (1 - matched_k * (ego_d)) <= 0.0 ? 1.0 : (1 - matched_k * (ego_d));
       const double ego_v = vel_spd * std::cos(theta_diff) / denominator1;
-      double acc_comp = velPid->PID_Control(targetPath_.trajectorypoint[std::get<0>(index)].v + speed_comp, ego_v);
+      double acc_comp = velPid->PID_Control(ref_point.v + speed_comp, ego_v);
 
-      double throttle_break_cmd = targetPath_.trajectorypoint[std::get<0>(index)].a + acc_comp;
+      double throttle_break_cmd = ref_point.a + acc_comp;
 
-      double steer = control_base->calculateCmd(targetPath_, gps_); // Todo(boqin.hu) 优化
-
+      double lat_error = ego_d;
+      lat_error = ego_d_filter->filt(lat_error);
+      double heading_error = theta_diff;
+      heading_error = heading_err_filter->filt(heading_error);
+      double lat_error_rate = vel_spd * std::sin(heading_error);
+      lat_error_rate = ego_d_rate_filter->filt(lat_error_rate);
+      double heading_error_rate = 0.0 - matched_k * matched_point.v;
+      heading_error_rate = heading_err_rate_filter->filt(heading_error_rate);
+      double ref_heading_rate = matched_k * matched_point.v;
+      
+      double steer = control_base->calculateCmd(targetPath_, gps_, lat_error,
+         heading_error, lat_error_rate, heading_error_rate, vel_spd, ref_heading_rate, matched_k);
+      steer = steer_cmd_mean->filt(steer);
       common_msgs::Control_Test control_info;
       control_info.header.frame_id = "world";
       control_info.header.stamp = ros::Time::now();

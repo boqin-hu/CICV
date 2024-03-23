@@ -6,7 +6,9 @@ namespace control {
 purePursuit::purePursuit(const double poskp, const double poski, const double poskd,const double velkp, const double velki, const double velkd) : controller(poskp,poski,poskd,velkp,velki,velkd) { }
 
 
-double purePursuit::calculateCmd(const msg_gen::trajectory& targetPath, const common_msgs::CICV_Location& gps) {
+double purePursuit::calculateCmd(const msg_gen::trajectory& targetPath, const common_msgs::CICV_Location& gps,
+                                double lat_error, double heading_error, double lat_error_rate, double heading_error_rate,
+                                double vehicle_speed, double ref_heading_rate, double matched_k) {
 	
 	int index = 0;
 	int forwardIndex = 0;

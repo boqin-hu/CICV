@@ -18,7 +18,9 @@ public:
 	void gpsCallback(const msg_gen::gps &pGps);
 	void run();
 
-	double calculateCmd(const msg_gen::trajectory& tragetPath, const common_msgs::CICV_Location& gps);
+	double calculateCmd(const msg_gen::trajectory& targetPath, const common_msgs::CICV_Location& gps,
+                                double lat_error, double heading_error, double lat_error_rate, double heading_error_rate,
+                                double vehicle_speed, double ref_heading_rate, double matched_k);
 };
 
 } // control
