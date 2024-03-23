@@ -107,16 +107,6 @@ namespace message_traits
 
 
 template <class ContainerAllocator>
-struct IsMessage< ::perception_msgs::Trajectory_<ContainerAllocator> >
-  : TrueType
-  { };
-
-template <class ContainerAllocator>
-struct IsMessage< ::perception_msgs::Trajectory_<ContainerAllocator> const>
-  : TrueType
-  { };
-
-template <class ContainerAllocator>
 struct IsFixedSize< ::perception_msgs::Trajectory_<ContainerAllocator> >
   : FalseType
   { };
@@ -124,6 +114,16 @@ struct IsFixedSize< ::perception_msgs::Trajectory_<ContainerAllocator> >
 template <class ContainerAllocator>
 struct IsFixedSize< ::perception_msgs::Trajectory_<ContainerAllocator> const>
   : FalseType
+  { };
+
+template <class ContainerAllocator>
+struct IsMessage< ::perception_msgs::Trajectory_<ContainerAllocator> >
+  : TrueType
+  { };
+
+template <class ContainerAllocator>
+struct IsMessage< ::perception_msgs::Trajectory_<ContainerAllocator> const>
+  : TrueType
   { };
 
 template <class ContainerAllocator>
@@ -142,12 +142,12 @@ struct MD5Sum< ::perception_msgs::Trajectory_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "132aa4b0598aef32b1def9d8d8e57cbe";
+    return "266afb8c63a60ed3aef67f1a176ac3fb";
   }
 
   static const char* value(const ::perception_msgs::Trajectory_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x132aa4b0598aef32ULL;
-  static const uint64_t static_value2 = 0xb1def9d8d8e57cbeULL;
+  static const uint64_t static_value1 = 0x266afb8c63a60ed3ULL;
+  static const uint64_t static_value2 = 0xaef67f1a176ac3fbULL;
 };
 
 template<class ContainerAllocator>
@@ -196,7 +196,6 @@ struct Definition< ::perception_msgs::Trajectory_<ContainerAllocator> >
 "int8 light_type\n"
 "string[] lane_ids\n"
 "TrajectoryPoint[] trajectorypoints\n"
-"\n"
 "================================================================================\n"
 "MSG: perception_msgs/TrajectoryPoint\n"
 "Point2D position\n"
@@ -205,6 +204,7 @@ struct Definition< ::perception_msgs::Trajectory_<ContainerAllocator> >
 "float32 curvature\n"
 "float32 s\n"
 "float32 t\n"
+"float32 a\n"
 "int8 point_type\n"
 "\n"
 "================================================================================\n"

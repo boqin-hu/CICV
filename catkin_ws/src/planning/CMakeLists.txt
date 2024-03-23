@@ -107,6 +107,7 @@ include_directories(
     include/lattice
     include/obstacle
     include/msg_gen
+    include/map_msgs
     include/path
     include/polynomial
     include/qp

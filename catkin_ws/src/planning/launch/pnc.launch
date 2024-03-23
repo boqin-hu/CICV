@@ -18,7 +18,7 @@
     <!-- 是否使用二次规划 -->
     <arg name="use_lateral_optimization" default="false"/> 
 
-    <node pkg="global_routing" type="routing_pub" name="global_routing" output="screen" /> <!-- 启动 global_routing 节点 -->
+    <!-- <node pkg="global_routing" type="routing_pub" name="global_routing" output="screen" /> 启动 global_routing 节点 -->
 
     <!-- 全局规划 -->
     <node pkg="planning" type="planning" name="planning" output="screen"/>

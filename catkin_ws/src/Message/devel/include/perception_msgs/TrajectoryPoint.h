@@ -31,6 +31,7 @@ struct TrajectoryPoint_
     , curvature(0.0)
     , s(0.0)
     , t(0.0)
+    , a(0.0)
     , point_type(0)  {
     }
   TrajectoryPoint_(const ContainerAllocator& _alloc)
@@ -40,6 +41,7 @@ struct TrajectoryPoint_
     , curvature(0.0)
     , s(0.0)
     , t(0.0)
+    , a(0.0)
     , point_type(0)  {
   (void)_alloc;
     }
@@ -63,6 +65,9 @@ struct TrajectoryPoint_
 
    typedef float _t_type;
   _t_type t;
+
+   typedef float _a_type;
+  _a_type a;
 
    typedef int8_t _point_type_type;
   _point_type_type point_type;
@@ -102,6 +107,7 @@ bool operator==(const ::perception_msgs::TrajectoryPoint_<ContainerAllocator1> &
     lhs.curvature == rhs.curvature &&
     lhs.s == rhs.s &&
     lhs.t == rhs.t &&
+    lhs.a == rhs.a &&
     lhs.point_type == rhs.point_type;
 }
 
@@ -124,22 +130,22 @@ namespace message_traits
 
 
 template <class ContainerAllocator>
-struct IsMessage< ::perception_msgs::TrajectoryPoint_<ContainerAllocator> >
-  : TrueType
-  { };
-
-template <class ContainerAllocator>
-struct IsMessage< ::perception_msgs::TrajectoryPoint_<ContainerAllocator> const>
-  : TrueType
-  { };
-
-template <class ContainerAllocator>
 struct IsFixedSize< ::perception_msgs::TrajectoryPoint_<ContainerAllocator> >
   : TrueType
   { };
 
 template <class ContainerAllocator>
 struct IsFixedSize< ::perception_msgs::TrajectoryPoint_<ContainerAllocator> const>
+  : TrueType
+  { };
+
+template <class ContainerAllocator>
+struct IsMessage< ::perception_msgs::TrajectoryPoint_<ContainerAllocator> >
+  : TrueType
+  { };
+
+template <class ContainerAllocator>
+struct IsMessage< ::perception_msgs::TrajectoryPoint_<ContainerAllocator> const>
   : TrueType
   { };
 
@@ -159,12 +165,12 @@ struct MD5Sum< ::perception_msgs::TrajectoryPoint_<ContainerAllocator> >
 {
   static const char* value()
   {
-    return "308fbdfad21569e0af17819e9dd2a2d2";
+    return "4730bb239196da2dc96ec9550b7d4ef8";
   }
 
   static const char* value(const ::perception_msgs::TrajectoryPoint_<ContainerAllocator>&) { return value(); }
-  static const uint64_t static_value1 = 0x308fbdfad21569e0ULL;
-  static const uint64_t static_value2 = 0xaf17819e9dd2a2d2ULL;
+  static const uint64_t static_value1 = 0x4730bb239196da2dULL;
+  static const uint64_t static_value2 = 0xc96ec9550b7d4ef8ULL;
 };
 
 template<class ContainerAllocator>
@@ -189,6 +195,7 @@ struct Definition< ::perception_msgs::TrajectoryPoint_<ContainerAllocator> >
 "float32 curvature\n"
 "float32 s\n"
 "float32 t\n"
+"float32 a\n"
 "int8 point_type\n"
 "\n"
 "================================================================================\n"
@@ -219,6 +226,7 @@ namespace serialization
       stream.next(m.curvature);
       stream.next(m.s);
       stream.next(m.t);
+      stream.next(m.a);
       stream.next(m.point_type);
     }
 
@@ -251,6 +259,8 @@ struct Printer< ::perception_msgs::TrajectoryPoint_<ContainerAllocator> >
     Printer<float>::stream(s, indent + "  ", v.s);
     s << indent << "t: ";
     Printer<float>::stream(s, indent + "  ", v.t);
+    s << indent << "a: ";
+    Printer<float>::stream(s, indent + "  ", v.a);
     s << indent << "point_type: ";
     Printer<int8_t>::stream(s, indent + "  ", v.point_type);
   }

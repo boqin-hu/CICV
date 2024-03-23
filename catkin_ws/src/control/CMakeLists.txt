@@ -45,6 +45,7 @@ catkin_package(
 include_directories(
     include
     include/lat_control
+    include/lon_control
     include/pure_pursuit_controller.h
     include/msg_gen
     include/controller.h

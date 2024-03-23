@@ -24,7 +24,6 @@
 #include <eigen3/Eigen/Eigen>
 #include <eigen3/Eigen/Dense>
 
-
 namespace dust{
 namespace control{
 
@@ -48,7 +47,9 @@ public:
 	virtual ~controller()=default;
 
 	// virtual function, base, lqrControl and pure_suit is inherited
-	virtual double calculateCmd(const msg_gen::trajectory &targetPath, const common_msgs::CICV_Location& gps) = 0;
+	virtual double calculateCmd(const msg_gen::trajectory& targetPath, const common_msgs::CICV_Location& gps,
+                                double lat_error, double heading_error, double lat_error_rate, double heading_error_rate,
+                                double vehicle_speed, double ref_heading_rate, double matched_k) = 0;
 
 public:
 
