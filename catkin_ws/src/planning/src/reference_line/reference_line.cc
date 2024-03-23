@@ -22,7 +22,9 @@ referenceLine::referenceLine(){
     gps_sub_ = n_.subscribe("/cicv_location", 10, &referenceLine::gpsCallback, this);
 
     // publisher
+
     trajectory_pub_ = n_.advertise<perception_msgs::Trajectory>("/cicv_amr_trajectory", 10);               //发布局部轨迹给 control
+
     rviz_pub_ = n_.advertise<nav_msgs::Path>("/rviz_local_path", 10);                               //在rviz中打印局部路径
     rviz_reference_pub_ = n_.advertise<geometry_msgs::PoseArray>("/rviz_global_path", 10);          //在rviz中打印全局路径
     rviz_obstacle_pub_ = n_.advertise<visualization_msgs::MarkerArray>("/rviz_obstacles", 10);      // 在rviz中显示障碍物

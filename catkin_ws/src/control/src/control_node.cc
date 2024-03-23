@@ -25,7 +25,6 @@ msg_gen::trajectory targetPath_;
 common_msgs::CICV_Location gps_;
 std::shared_ptr<pid> posPid;
 std::shared_ptr<pid> velPid;
-
 void routingCallback(const perception_msgs::Trajectory &routing){
 	// 确保一开始只订阅一次
   // std::cout << "routing.header.time_stamp" << routing.header.stamp << std::endl;
@@ -58,6 +57,7 @@ void routingCallback(const perception_msgs::Trajectory &routing){
     kappa_old = targetPath_.trajectorypoint[i].kappa;
     time_old = routing.trajectoryinfo.trajectorypoints[i].t;
 	}
+  targetPath_.trajectorypoint[0].a = targetPath_.trajectorypoint[1].a;
 }
 // void routingCallback(const msg_gen::trajectory &routing){
 // 	// 确保一开始只订阅一次
@@ -77,7 +77,6 @@ void routingCallback(const perception_msgs::Trajectory &routing){
 // 		targetPath_.trajectorypoint[i].absolute_time = routing.trajectorypoint[i].absolute_time;
 // 	}
 // }
-
 void locationCallback(const perception_msgs::PerceptionLocalization& pGps){
 	// gps_ = pGps;
   gps_.header.frame_id = pGps.header.frame_id; // base_link

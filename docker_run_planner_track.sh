@@ -2,11 +2,10 @@
 
 HERE=$(pwd)
 docker run \
-    -v $HERE/catkin_ws:/workspace \
-    -w /workspace \
+    -w /planner_tracking \
     -it -u root --privileged=true \
     --rm \
-    --name=Cicv_planning \
+    --name=Cicv_plannerTrack \
     --network=host \
     -e ROS_MASTER_URI=http://localhost:11311 \
     cicv_hbq:latest \
