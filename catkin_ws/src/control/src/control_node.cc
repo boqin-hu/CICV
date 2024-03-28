@@ -14,6 +14,8 @@
 #include "perception_msgs/Trajectory.h"
 #include "perception_msgs/PerceptionLocalization.h"
 #include "tool.h"
+#include <sstream>
+#include <fstream>
 //#include "reference_line.h"
 
 using namespace dust::control;
@@ -83,7 +85,7 @@ void locationCallback(const perception_msgs::PerceptionLocalization& pGps){
   gps_.header.stamp = ros::Time::now();  
   gps_.Position_x = pGps.position_x;
   gps_.Position_y = pGps.position_y;
-  gps_.SimTim = 0;
+  gps_.SimTim = pGps.pitch;
   gps_.Velocity_x = pGps.velocity_x;   // 单位 m/s 
   gps_.Velocity_y = pGps.velocity_y;   // 单位 m/s
   gps_.Accel_x = pGps.accel_x;
@@ -127,12 +129,35 @@ std::pair<int, int> getIndex(const msg_gen::trajectory& trajectory_point,const c
   }
   return {index_time, index_pos};
 }
-
-
-
+std::map<double, double> lower_pedal_map = {
+  {0.0, 0.0},
+  {0.3521, 10.0},
+  {0.8325, 20.0},
+  {1.3123, 30.0},
+  {1.7924, 40.0},
+  {2.2723, 50.0},
+  {2.7514, 60.0},
+  {3.2310, 70.0},
+  {3.7110, 80.0},
+  {4.1910, 90.0},
+  {4.6710, 100.0}
+};
+std::map<double, double> upper_pedal_map = {
+  {0.0, 0.0},
+  {1.6, 10.0},
+  {3.8, 20.0},
+  {6.0, 30.0},
+  {8.0, 40.0},
+  {10.6, 50.0},
+  {12.6, 60.0},
+  {15.0, 70.0},
+  {17.2, 80.0},
+  {19.5, 90.0},
+  {21.6, 100.0}
+};
 int main(int argc, char **argv) {
   ros::init(argc, argv, "control");
-
+  
   // ros parameter settings
   //ros::param::get("which_controllers", which_controllers);
   which_controllers = 0;
@@ -159,10 +184,12 @@ int main(int argc, char **argv) {
   std::shared_ptr<NumericMeanFilter> s_err_mean = std::make_shared<NumericMeanFilter>(20);
   std::shared_ptr<NumericMeanFilter> ego_s_mean = std::make_shared<NumericMeanFilter>(50);
   std::shared_ptr<NumericMeanFilter> steer_cmd_mean = std::make_shared<NumericMeanFilter>(5);
+  std::shared_ptr<NumericMeanFilter> ego_pitch_mean = std::make_shared<NumericMeanFilter>(20);
   std::shared_ptr<LowPassFilter> ego_d_filter = std::make_shared<LowPassFilter>(0.1, 0.9);
   std::shared_ptr<LowPassFilter> heading_err_filter = std::make_shared<LowPassFilter>(0.1, 0.9);
   std::shared_ptr<LowPassFilter> ego_d_rate_filter = std::make_shared<LowPassFilter>(0.2, 0.8);
   std::shared_ptr<LowPassFilter> heading_err_rate_filter = std::make_shared<LowPassFilter>(0.2, 0.8);
+  std::shared_ptr<LowPassFilter> ego_acc_filter = std::make_shared<LowPassFilter>(0.1, 0.9);
   ros::NodeHandle n_;
   // ros sub
   ros::Subscriber planning_sub = n_.subscribe("/cicv_amr_trajectory", 10, routingCallback);
@@ -174,15 +201,29 @@ int main(int argc, char **argv) {
   // ros pub
   ros::Publisher control_pub = n_.advertise<common_msgs::Control_Test>("/control_test", 10);
   //ros::Publisher point_pub = n_.advertise<geometry_msgs::PointStamped>("/vehicle_gps",10);                // 发布车辆定位
-  
-
+  std::ofstream outfile("/workspace/datarecord.txt");
+  std::string data = std::string("scenario") + "  " +
+           std::string("cycle_time") + "  " +
+           std::string("cpu_usage") + "  " +
+           std::string("speed") + "     " +
+           std::string("kappa") + "     " +
+           std::string("s_error") + "  " +
+           std::string("speed_error") + "  " +
+           std::string("acc_error") + "  " +
+           std::string("lateral_error") + "  " +
+           std::string("lateral_error_rate") + "  " +
+           std::string("heading_error") + "  " +
+           std::string("heading_error_rate") + "  " + 
+           std::string("real_time") + "\n";
+  outfile << data;
+  double old_time = ros::Time::now().toSec();
   ros::Rate loop_rate(50);
   while (ros::ok())
   {
     std::cout << "targetPath_.pointsize = " << targetPath_.pointsize << std::endl;
      // 先订阅到消息才可以发布 
     if (targetPath_.pointsize > 0) {
-
+      
       std::pair<int, int> index = getIndex(targetPath_,gps_);
       const auto& matched_point = targetPath_.trajectorypoint[std::get<1>(index)];
       const auto& ref_point = targetPath_.trajectorypoint[std::get<0>(index)];
@@ -208,9 +249,20 @@ int main(int argc, char **argv) {
       double denominator1 =
           (1 - matched_k * (ego_d)) <= 0.0 ? 1.0 : (1 - matched_k * (ego_d));
       const double ego_v = vel_spd * std::cos(theta_diff) / denominator1;
+      double ego_d_dot = vel_spd * std::sin(theta_diff);
+      double denominator2 =
+          (1 - matched_k * ego_d_dot) <= 0.0 ? 1.0 : (1 - matched_k * ego_d_dot);
+      double ego_acc = sqrt(pow(gps_.Accel_x,2) + pow(gps_.Accel_y,2));
+      ego_acc = ego_acc_filter->filt(ego_acc);
+      double ego_s_dot_dot = ego_acc * std::cos(theta_diff) / denominator2;
       double acc_comp = velPid->PID_Control(ref_point.v + speed_comp, ego_v);
 
-      double throttle_break_cmd = ref_point.a + acc_comp;
+      double ego_pitch = ego_pitch_mean->filt(gps_.SimTim / 57.2958);
+      double gain_ratio = std::fmax(std::fmin((fabs(ego_pitch * 57.2958) - 1.0) / 4.0, 1.0), 0.0);
+      double pitch_compensation = gain_ratio * 9.8 * sin(ego_pitch);
+      // std::cout << "pitch_compensation = " << pitch_compensation << " gain_ratio = "<< gain_ratio << std::endl;
+      double throttle_break_cmd = ref_point.a + acc_comp - pitch_compensation;
+      // throttle_break_cmd = 0.0;
 
       double lat_error = ego_d;
       lat_error = ego_d_filter->filt(lat_error);
@@ -221,10 +273,45 @@ int main(int argc, char **argv) {
       double heading_error_rate = 0.0 - matched_k * matched_point.v;
       heading_error_rate = heading_err_rate_filter->filt(heading_error_rate);
       double ref_heading_rate = matched_k * matched_point.v;
-      
+      // double start_time = ros::Time::now().toSec();
       double steer = control_base->calculateCmd(targetPath_, gps_, lat_error,
          heading_error, lat_error_rate, heading_error_rate, vel_spd, ref_heading_rate, matched_k);
       steer = steer_cmd_mean->filt(steer);
+      double end_time = ros::Time::now().toSec();
+      std::cout << "ego_s_dot_dot : " <<
+       ego_s_dot_dot << " ref_point.a : " << ref_point.a << " ego_v : " << ego_v << " vel_spd : " << 
+       vel_spd << std::endl;
+      double start_time = ros::Time::now().toSec();
+      double time_cycle =  start_time - old_time;
+      old_time = start_time;
+      outfile << std::string("straight") + "  " +
+      std::to_string(ego_v) + "    " + 
+      std::to_string(pitch_compensation) + "   " + //cpu usage
+      std::to_string(vel_spd) + "  " +
+      std::to_string(gps_.SimTim) + "  " + //matched_k
+      std::to_string(s_error) + "  " +
+      std::to_string(ref_point.v - ego_v) + "   " +
+      std::to_string(ref_point.a - ego_s_dot_dot) + "  " +
+      std::to_string(lat_error) + "       " +
+      std::to_string(lat_error_rate) + "           " +
+      std::to_string(heading_error) + "        " +
+      std::to_string(heading_error_rate) + "           " + 
+      std::to_string(end_time) + "\n";
+
+      // outfile << std::string("straight") + "  " +
+      // std::to_string(throttle_break_cmd) + "    " + 
+      // std::to_string(gps_.SimTim) + "   " + //cpu usage
+      // std::to_string(vel_spd) + "  " +
+      // std::to_string(ego_v * ego_s_dot_dot) + "  " + //matched_k
+      // std::to_string(ego_s_dot_dot) + "  " +
+      // std::to_string(ref_point.v - ego_v) + "   " +
+      // std::to_string(ref_point.a - ego_s_dot_dot) + "  " +
+      // std::to_string(lat_error) + "       " +
+      // std::to_string(lat_error_rate) + "           " +
+      // std::to_string(heading_error) + "        " +
+      // std::to_string(heading_error_rate) + "           " + 
+      // std::to_string(end_time) + "\n";
+      
       common_msgs::Control_Test control_info;
       control_info.header.frame_id = "world";
       control_info.header.stamp = ros::Time::now();
@@ -241,15 +328,55 @@ int main(int argc, char **argv) {
       control_info.SteeringAngle = steer;
       if (throttle_break_cmd >=0)
       {
-        throttle_break_cmd = std::fmin(throttle_break_cmd, 2.0);
-        control_info.ThrottlePedal = throttle_break_cmd * 50.0;
+        if (std::fabs(ego_v) <= 4.7) {
+          double query_key = throttle_break_cmd;
+          auto it = lower_pedal_map.lower_bound(query_key);
+          // auto it2 = ++it;
+          if (it == lower_pedal_map.begin()) {
+            control_info.ThrottlePedal = lower_pedal_map.rend()->second;
+          } else if (it != lower_pedal_map.end()) {
+            double behind_key = it->first;
+            double behind_value = it->second;
+            --it;
+            double front_key = it->first;
+            double front_value = it->second;
+            double ratio = (query_key - front_key) / (behind_key - front_key);
+            control_info.ThrottlePedal = ratio * (behind_value - front_value) + front_value;
+            std::cout << "低速找到了键值对：(" << front_key << ", " << front_value << ")" << std::endl;
+          std::cout << "低速找到了键值对：(" << behind_key << ", " << behind_value << ")" << std::endl;
+          } else {
+            control_info.ThrottlePedal = lower_pedal_map.rbegin()->second;
+          }
+        } else {
+          double query_key = throttle_break_cmd * std::fabs(ego_v);
+          auto it = upper_pedal_map.lower_bound(query_key);
+          // auto it2 = ++it;
+          if (it == upper_pedal_map.begin()) {
+            control_info.ThrottlePedal = upper_pedal_map.rend()->second;
+          } else if (it != upper_pedal_map.end()) {
+            double behind_key = it->first;
+            double behind_value = it->second;
+            --it;
+            double front_key = it->first;
+            double front_value = it->second;
+            double ratio = (query_key - front_key) / (behind_key - front_key);
+            control_info.ThrottlePedal = ratio * (behind_value - front_value) + front_value;
+            std::cout << "高速找到了键值对：(" << front_key << ", " << front_value << ")" << std::endl;
+          std::cout << "高速找到了键值对：(" << behind_key << ", " << behind_value << ")" << std::endl;
+          } else {
+            control_info.ThrottlePedal = upper_pedal_map.rbegin()->second;
+          }
+        }
+        std::cout << "ThrottlePedal：(" << control_info.ThrottlePedal << ")" << std::endl;
         control_info.BrakePedal = 0.0;
+        // control_info.ThrottlePedal = throttle_break_cmd;
       }
       else
       {
-        throttle_break_cmd = std::fmin(-throttle_break_cmd, 3.0);
-        control_info.BrakePedal = throttle_break_cmd * 100.0 / 3.0;
-        control_info.ThrottlePedal = 0.0;
+        // throttle_break_cmd = std::fmin(-throttle_break_cmd, 3.0);
+        // control_info.BrakePedal = throttle_break_cmd * 100.0 / 3.0;
+        // control_info.ThrottlePedal = 0.0;
+        control_info.BrakePedal = -throttle_break_cmd;
       }
 
       // 到达终点发制动 x: 116.490491,y: 39.729672,z: 0.0

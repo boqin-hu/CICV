@@ -50,9 +50,7 @@ lqrControl::lqrControl(const double poskp, const double poski, const double posk
 }
 bool lqrControl::updateVehicleModel(double vehicle_speed, double ref_heading_rate) {
   double v = std::fmax(vehicle_speed, 0.5);
-  double ts = 0.02;
-  std::cout << "mass_ = " << mass_ << " iz_ = " << iz_ << " v = " << v << std::endl;
-  std::cout << "cf_ = " << cf_ << " cr_ = " << cr_ << " lf_ = " << lf_ << "lr_ " << lr_ << std::endl;
+  double ts = 0.2;
   matrix_a_coeff_(1, 1) = -(2 * cf_ + 2 * cr_) / mass_;
   matrix_a_coeff_(1, 3) = (-2 * cf_ * lf_ + 2 * cr_ * lr_) / mass_;
   matrix_a_coeff_(3, 1) = -(2 * cf_ * lf_ - 2 * cr_ * lr_) / iz_;
@@ -60,24 +58,24 @@ bool lqrControl::updateVehicleModel(double vehicle_speed, double ref_heading_rat
 
   matrix_a_(1, 2) = (2 * cf_ + 2 * cr_) / mass_;
   matrix_a_(3, 2) = (2 * cf_ * lf_ - 2 * cr_ * lr_) / iz_;
-  std::cout << "running here 02!" << std::endl;
   matrix_a_(1, 1) = matrix_a_coeff_(1, 1) / v;
   matrix_a_(1, 3) = matrix_a_coeff_(1, 3) / v;
   matrix_a_(3, 1) = matrix_a_coeff_(3, 1) / v;
   matrix_a_(3, 3) = matrix_a_coeff_(3, 3) / v;
 
+  matrix_a_(0, 1) = 1.0;
+  matrix_a_coeff_(0, 2) = 0.0;
+  matrix_a_(2, 3) = 1.0;
   matrix_b_(1, 0) = 2 * cf_ / mass_;
   matrix_b_(3, 0) = 2 * cf_ * lf_ / iz_;
 
   matrix_c_(1, 0) = -(2 * cf_ * lf_ - 2 * cr_ * lr_) / mass_ / v - v;
   matrix_c_(3, 0) = -(2 * cf_ * lf_ * lf_ + 2 * cr_ * lr_ * lr_) / iz_ / v;
-
   // continuous to discrete
   Eigen::MatrixXd Identity = Eigen::MatrixXd::Identity(4, 4);
   matrix_ad_ = (Identity - ts * 0.5 * matrix_a_).inverse() * (Identity + ts * 0.5 * matrix_a_);
   matrix_bd_ = matrix_b_ * ts;
   matrix_cd_ = matrix_c_ * ref_heading_rate * ts;
-  std::cout << "running here 03!" << std::endl;
   return true;
 }
 bool lqrControl::solveDiscreteLqr(const Eigen::MatrixXd& A,
@@ -96,20 +94,31 @@ bool lqrControl::solveDiscreteLqr(const Eigen::MatrixXd& A,
   Eigen::MatrixXd P_next;
   Eigen::MatrixXd AT = A.transpose(); 
   Eigen::MatrixXd BT = B.transpose();
-
+  
+  // std::cout << "matrix_ B :" << MatDebug(B)<< std::endl;
+  // std::cout << "matrix_ Q : " << MatDebug(Q)<< std::endl;
+  // std::cout << "matrix_ R : " << MatDebug(R)<< std::endl;
+  // std::cout << "matrix_ AT : " << MatDebug(AT)<< std::endl;
+  // std::cout << "matrix_ BT : " << MatDebug(BT)<< std::endl;
+  // std::cout << "AT * P * A : " << MatDebug(AT * P * A)<< std::endl;
+  // std::cout << "matrix_ AT * P * B  : " << MatDebug(AT * P * B)<< std::endl;
+  // std::cout << "BT * P * A  : " << MatDebug(BT * P * A)<< std::endl;
+  // double start_time = ros::Time::now().toSec();
   double diff = std::numeric_limits<double>::max();
   for (u_int64_t i = 0; i <= max_iteration; i++) {
     P_next = AT * P * A -
         AT * P * B * (R + BT * P * B).inverse() * BT * P * A + Q;
     diff = fabs((P_next - P).maxCoeff());
+    if(i==max_iteration){std::cout << "P_next - P  : " << MatDebug(P_next - P)<< std::endl;}
     P = P_next;
     if (diff <= tolerance) {
       *K = (R + BT * P * B).inverse() * BT * P * A;
-      std::cout << "Lqr solve succed at " << i << " with tolerance : " << diff << std::endl;
+      // std::cout << "Lqr solve succed at " << i << " with tolerance : " << diff << std::endl;
       return true;
     }
   }
-
+  // double end_time = ros::Time::now().toSec();
+  // std::cout << "cost time = " << end_time - start_time << std::endl;
   if (diff >= 100 * tolerance) {
     std::cout << "Lqr solver: iterate finished with tolerance : " << diff << std::endl;
   } else {
@@ -171,25 +180,24 @@ double lqrControl::calculateCmd(const msg_gen::trajectory& targetPath, const com
   matrix_r_(0, 0) = 100.0;
 //   matrix_r_(0, 1) = 100.0;
 //   matrix_r_(0, 2) = 100.0;
-  double start_time = ros::Time::now().toSec();
   // solve lqr problem
   Eigen::MatrixXd matrix_k_;
-  std::cout << "matrix_ad_ :" << MatDebug(matrix_ad_)<< std::endl;
-  std::cout << "matrix_bd_ :" << MatDebug(matrix_bd_)<< std::endl;
-  std::cout << "matrix_q_ : " << MatDebug(matrix_q_)<< std::endl;
-  std::cout << "matrix_r_ : " << MatDebug(matrix_r_)<< std::endl;
+  // std::cout << "matrix_ad_ :" << MatDebug(matrix_ad_)<< std::endl;
+  // std::cout << "matrix_bd_ :" << MatDebug(matrix_bd_)<< std::endl;
+  // std::cout << "matrix_q_ : " << MatDebug(matrix_q_)<< std::endl;
+  // std::cout << "matrix_r_ : " << MatDebug(matrix_r_)<< std::endl;
+  
   bool sucess = solveDiscreteLqr(
-      matrix_ad_, matrix_bd_, matrix_q_, matrix_r_, 0.01, 500, &matrix_k_);
+      matrix_ad_, matrix_bd_, matrix_q_, matrix_r_, 0.1, 150, &matrix_k_);
   if (!sucess) {
     ROS_INFO("lqr solve failed");
   }
+  
   Eigen::MatrixXd matrix_u;
   matrix_u = -1.0 * matrix_k_ * matrix_state_;
   double steer_feedback = matrix_u(0, 0);
   std::cout << "steer_feedback = " << steer_feedback << std::endl;
-  double end_time = ros::Time::now().toSec();
-  std::cout << "lqr solver cost time: " <<
-       end_time - start_time << "ms" << " start_time = " << start_time << " end_time = " << end_time << std::endl;
+  
   double steer_feedforward = updateFeedforward(vehicle_speed, matched_k);
   // get result
   double final_steer =
